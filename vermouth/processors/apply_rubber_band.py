@@ -227,7 +227,7 @@ def apply_rubber_band(molecule, selector,
                       lower_bound, upper_bound,
                       decay_factor, decay_power,
                       base_constant, minimum_force,
-                      bond_type, domain_criterion, res_min_dist):
+                      bond_type, domain_criterion, res_min_dist, eb_write):
     r"""
     Adds a rubber band elastic network to a molecule.
 
@@ -295,6 +295,9 @@ def apply_rubber_band(molecule, selector,
         Minimum separation between two atoms for a bond to be kept.
         Bonds are kept is the separation is greater or equal to the value
         given.
+    eb_write: bool
+        if True, EN parameters get returned to be written out to an external file.
+        if False, EN parameters are written into the molecule's topology.
     """
     selection = []
     coordinates = []
@@ -341,6 +344,11 @@ def apply_rubber_band(molecule, selector,
     # Multiply the force constant by 0 if the nodes cannot be linked.
     constants *= can_be_linked
     distance_matrix = distance_matrix.round(5)  # For compatibility with legacy
+    ebs = []
+    if eb_write:
+        interaction_type = 'el_bonds'
+    else:
+        interaction_type = 'bonds'
     for from_idx, to_idx in zip(*np.triu_indices_from(constants)):
         # note the indices in the matrix are not anymore the idx of
         # the full molecule but the subset of nodes in selection
@@ -350,12 +358,12 @@ def apply_rubber_band(molecule, selector,
         length = distance_matrix[from_idx, to_idx]
         if force_constant > minimum_force:
             molecule.add_interaction(
-                type_='bonds',
+                type_=interaction_type,
                 atoms=(from_key, to_key),
                 parameters=[bond_type, length, force_constant],
-                meta={'group': 'Rubber band'},
+                meta={'group': 'Rubber band'}
             )
-
+    return ebs
 
 def always_true(*args, **kwargs):  # pylint: disable=unused-argument
     """
@@ -493,7 +501,8 @@ class ApplyRubberBand(Processor):
                  selector=selectors.select_backbone,
                  bond_type_variable='elastic_network_bond_type',
                  res_min_dist_variable='elastic_network_res_min_dist',
-                 domain_criterion=always_true):
+                 domain_criterion=always_true,
+                 write_out=False):
         super().__init__()
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
@@ -507,6 +516,7 @@ class ApplyRubberBand(Processor):
         self.domain_criterion = domain_criterion
         self.res_min_dist = res_min_dist
         self.res_min_dist_variable = res_min_dist_variable
+        self.write_out = write_out
 
     def run_molecule(self, molecule):
         # Choose the bond type. From high to low, the priority order is:
@@ -535,5 +545,19 @@ class ApplyRubberBand(Processor):
                           minimum_force=self.minimum_force,
                           bond_type=bond_type,
                           domain_criterion=self.domain_criterion,
-                          res_min_dist=res_min_dist)
+                          res_min_dist=res_min_dist,
+                          eb_write=self.write_out)
+
         return molecule
+
+    def run_system(self, system):
+        """
+        Process `system`.
+
+        Parameters
+        ----------
+        system: vermouth.system.System
+            The system to process. Is modified in-place.
+        """
+        self.system = system
+        super().run_system(system)

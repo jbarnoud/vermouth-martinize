@@ -171,6 +171,21 @@ def parse_gofiles(file, atomtypes=False):
                 vals[tup] = tuple((float(line[3]), float(line[4])))
     return vals
 
+def parse_enfiles(file):
+    '''
+    Parser of en_bonds.itp files into an easy to assert dictionary
+    '''
+
+    with open(file) as f:
+        next(f)
+        next(f) # skip 2 header lines
+        vals = {}
+        for line in f:
+            line = line.split()
+            tup = tuple(sorted((line[0], line[1])))
+            vals[tup] = tuple((int(line[2]), float(line[3]), float(line[4])))
+    return vals
+
 @pytest.fixture
 def test_molecule(scope='function'):
     """

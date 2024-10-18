@@ -28,7 +28,7 @@ import vermouth
 from vermouth.forcefield import ForceField
 
 from .. import datafiles
-from ..helper_functions import find_in_path, parse_gofiles
+from ..helper_functions import find_in_path, parse_gofiles, parse_enfiles
 
 
 INTEGRATION_DATA = Path(datafiles.TEST_DATA/'integration_tests')
@@ -141,6 +141,21 @@ GOCOMPARERS = {'go_nbparams.itp': compare_nbparams,
                'go_atomtypes.itp': compare_goatomtypes,
                'virtual_sites_atomtypes.itp': compare_goatomtypes}
 
+def compare_en(fileref, filecomp):
+    """
+    Asserts that two en_bonds.itp files are functionally identical
+    """
+
+    ref = parse_enfiles(fileref)
+    compare = parse_enfiles(filecomp)
+
+    assert  set(ref.keys()) == set(compare.keys())
+
+    for key in ref.keys():
+        assert ref[key] == compare[key]  #assert correct atom definition string
+
+ENCOMPARERS = {'en_bonds.itp': compare_en}
+
 def _interaction_equal(interaction1, interaction2):
     """
     Returns True if interaction1 == interaction2, ignoring rounding errors in
@@ -172,6 +187,7 @@ def _interaction_equal(interaction1, interaction2):
     ['tier-1', 'EN_chain'],
     ['tier-1', 'EN_region'],
     ['tier-1', 'hst5'],
+    ['tier-1', 'EN_ext']
 #   ['tier-2', 'barnase_barstar'],
 #   ['tier-2', 'dna'],
 #   ['tier-2', 'gpa_dimer'],
@@ -240,6 +256,8 @@ def test_integration_protein(tmp_path, monkeypatch, tier, protein):
         if filename in GOCOMPARERS:
             # compare the extra go/vs model files
             GOCOMPARERS[filename](str(reference_file), str(new_file))
+        elif filename in ENCOMPARERS:
+            ENCOMPARERS[filename](str(reference_file), str(new_file))
         else:
             ext = new_file.suffix.lower()
             if ext in COMPARERS:

@@ -350,7 +350,8 @@ def test_apply_rubber_bands(test_molecule, chain_attribute, atom_names, res_min_
         minimum_force=1,
         bond_type=6,
         domain_criterion=domain_criterion,
-        res_min_dist=res_min_dist)
+        res_min_dist=res_min_dist,
+        write_out=False)
     process.run_molecule(test_molecule)
     assert test_molecule.interactions['bonds'] == outcome
 
@@ -424,7 +425,8 @@ def test_apply_rubber_bands_same_regions(test_molecule, regions, chain_attribute
         minimum_force=1,
         bond_type=6,
         domain_criterion=domain_criterion,
-        res_min_dist=res_min_dist)
+        res_min_dist=res_min_dist,
+        write_out=False)
     process.run_molecule(test_molecule)
     assert test_molecule.interactions['bonds'] == outcome
 
@@ -449,7 +451,8 @@ def test_skip_no_matches(test_molecule):
         minimum_force=1,
         bond_type=6,
         domain_criterion=domain_criterion,
-        res_min_dist=3)
+        res_min_dist=3,
+        write_out=False)
     process.run_molecule(test_molecule)
     assert test_molecule.interactions['bonds'] == []
 
@@ -477,7 +480,8 @@ def test_bail_out_on_nan(caplog, test_molecule):
         minimum_force=1,
         bond_type=6,
         domain_criterion=domain_criterion,
-        res_min_dist=3)
+        res_min_dist=3,
+        write_out=False)
     process.run_molecule(test_molecule)
 
     required_warning = ("Found nan coordinates in molecule testmol. "

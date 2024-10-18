@@ -1,0 +1,12 @@
+martinize2
+-f ../aa.pdb
+-o cg.top
+-x cg.pdb
+-dssp
+-p backbone
+-ff martini3001
+-scfix
+-cys auto
+-ignore HOH
+-elastic
+-ew

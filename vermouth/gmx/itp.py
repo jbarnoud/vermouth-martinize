@@ -18,6 +18,7 @@ Handle the ITP file format from Gromacs.
 
 import copy
 import itertools
+from vermouth.file_writer import deferred_open
 
 __all__ = ['write_molecule_itp', ]
 
@@ -54,6 +55,27 @@ def _interaction_sorting_key(interaction):
 
     return (conditional, group)
 
+def write_bond_params(interactions, itp_path, correspondence, max_length):
+    """
+    Writes the [ bonds ] directive to file.
+
+    interactions: list
+        list of bonded interactions to write to file
+    itp_path: str
+        name of external file to write
+    """
+    with deferred_open(itp_path, "w") as itp_file:
+        itp_file.write('[ bonds ]\n')
+        for b_params in interactions:
+            atoms = ['{atom_idx:>{max_length[idx]}}'
+                     .format(atom_idx=correspondence[x],
+                             max_length=max_length)
+                     for x in b_params.atoms]
+            parameters = ' '.join(str(x) for x in b_params.parameters)
+            comment = ''
+
+            to_join = atoms + [parameters]
+            itp_file.write(' '.join(to_join) + comment + '\n')
 
 def write_molecule_itp(molecule, outfile, header=(), moltype=None,
                        post_section_lines=None, pre_section_lines=None):
@@ -194,6 +216,15 @@ def write_molecule_itp(molecule, outfile, header=(), moltype=None,
         # should be written under the [ dihedrals ] section of the ITP file.
         if name == 'impropers':
             name = 'dihedrals'
+        # el_bonds is a directive for elastic network bonds to be written out externally
+        if name == 'el_bonds':
+            outfile.write('#ifdef ELASTIC\n')
+            outfile.write('#include "en_bonds.itp"\n')
+            outfile.write('#endif\n\n')
+            write_bond_params(interactions, 'en_bonds.itp',
+                              correspondence, max_length)
+            continue
+
         outfile.write('[ {} ]\n'.format(name))
         seen_sections.add(name)
         for line in pre_section_lines.get(name, []):

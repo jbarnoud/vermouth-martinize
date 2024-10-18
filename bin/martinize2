@@ -539,6 +539,13 @@ def entry():
             "format: <start_resid_1>:<end_resid_1>, <start_resid_2>:<end_resid_2>..."
         ),
     )
+    rb_group.add_argument(
+        "-ew",
+        dest="rb_write",
+        default=False,
+        action="store_true",
+        help="Write the elastic network to an external .itp file",
+    )
     go_group = parser.add_argument_group("Virtual site based GoMartini")
     go_group.add_argument(
         "-go",
@@ -1059,6 +1066,7 @@ def entry():
             selector=selector,
             domain_criterion=domain_criterion,
             res_min_dist=args.res_min_dist,
+            write_out=args.rb_write,
         )
         rubber_band_processor.run_system(system)
 
