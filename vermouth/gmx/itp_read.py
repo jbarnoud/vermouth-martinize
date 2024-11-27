@@ -20,6 +20,7 @@ Read GROMACS .itp files.
 import collections
 from vermouth.molecule import (Block, Interaction)
 from vermouth.parser_utils import (SectionLineParser, _tokenize)
+from vermouth.parser_utils import split_comments
 
 class ITPDirector(SectionLineParser):
     """
@@ -58,6 +59,39 @@ class ITPDirector(SectionLineParser):
         }
         # a list of nodes of current-block
         self.current_atom_names = []
+        self.current_comment = None
+
+    def parse(self, file_handle):
+        """
+        Reads lines from `file_handle`, and calls :meth:`dispatch` to find
+        which method to call to do the actual parsing. Yields the result of
+        that call, if it's not `None`.
+        At the end, calls :meth:`finalize`, and yields its results, iff
+        it's not None.
+        Parameters
+        ----------
+        file_handle: collections.abc.Iterable[str]
+            The data to parse. Should produce lines of data.
+        Yields
+        ------
+        object
+            The results of dispatching to parsing methods, and of
+            :meth:`finalize`.
+        """
+        lineno = 0
+        for lineno, line in enumerate(file_handle, 1):
+            line, comment = split_comments(line, self.COMMENT_CHAR)
+            self.current_comment = comment
+            if not line:
+                continue
+            result = self.dispatch(line)(line, lineno)
+
+            if result is not None:
+                yield result
+
+        result = self.finalize(lineno)
+        if result is not None:
+            yield result
 
     def dispatch(self, line):
         """
@@ -383,7 +417,6 @@ class ITPDirector(SectionLineParser):
         """
         Converts an interaction line into a vermouth interaction
         tuple. It updates the block interactions in place.
-
         Parameters
         ----------
         tokens: collections.deque[str]
@@ -404,7 +437,10 @@ class ITPDirector(SectionLineParser):
         if self.current_meta:
             meta = {self.current_meta['condition']: self.current_meta['tag']}
         else:
-            meta = {} #dict(collections.ChainMap(meta, apply_to_all_interactions))
+            meta = {}
+
+        if self.current_comment:
+            meta['comment'] = self.current_comment
 
         interaction = Interaction(
             atoms=treated_atoms,

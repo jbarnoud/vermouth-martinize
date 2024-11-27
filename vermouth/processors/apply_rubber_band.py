@@ -353,7 +353,7 @@ def apply_rubber_band(molecule, selector,
                 type_='bonds',
                 atoms=(from_key, to_key),
                 parameters=[bond_type, length, force_constant],
-                meta={'group': 'Rubber band'},
+                meta={'group': 'Rubber band', 'comment': 'elastic-bond'},
             )
 
 
