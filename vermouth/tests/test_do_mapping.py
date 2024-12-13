@@ -475,7 +475,7 @@ def test_apply_mod_mapping(modified_molecule, modifications):
     """
     graph_out = Molecule(force_field=FF_UNIVERSAL)
     graph_out.add_nodes_from([
-        (0, {'atomname': 'A', 'resid': 1})
+        (0, {'atomname': 'A', 'resid': 1, 'charge_group': 1})
     ])
     mol_to_out = {0: {0: 1}}
     out_to_mol = {0: {0: 1}}
@@ -492,7 +492,7 @@ def test_apply_mod_mapping(modified_molecule, modifications):
     assert mol_to_out == {0: {0: 1}, 1: {1: 1}}
     assert out_to_mol == {0: {0: 1}, 1: {1: 1}}
 
-    graph_out.add_node(2, atomname='J', resid=2)
+    graph_out.add_node(2, atomname='J', resid=2, charge_group=2)
     mol_to_out[16] = {2: 1}
     out_to_mol[2] = {16: 1}
 

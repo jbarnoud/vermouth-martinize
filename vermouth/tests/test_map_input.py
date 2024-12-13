@@ -522,15 +522,18 @@ def test_generate_self_mapping():
     Test that :func:`vermouth.map_input.generate_self_mappings` works as
     expected.
     """
+    force_field = vermouth.forcefield.ForceField(name='ff')
     # Build the input blocks
     blocks = {
         'A0': vermouth.molecule.Block([['AA', 'BBB'], ['BBB', 'CCCC']]),
         'B1': vermouth.molecule.Block([['BBB', 'CCCC'], ['BBB', 'E']]),
     }
+    force_field.blocks = blocks
     for name, block in blocks.items():
         block.name = name
         for atomname, node in block.nodes.items():
             node['atomname'] = atomname
+
     # Build the expected output
     ref_mappings = {
         'A0': (
@@ -547,10 +550,13 @@ def test_generate_self_mapping():
         ),
     }
     # Actually test
-    mappings = vermouth.map_input.generate_self_mappings(blocks)
+    mappings = vermouth.map_input.generate_self_mappings(force_field)
+    for name, map in mappings.items():
+        ref = ref_mappings[name]
+        assert map.mapping == ref[0]
+        assert map.block_to.extra == ref[1]
+
     assert mappings.keys() == ref_mappings.keys()
-    for blockname in mappings:
-        assert mappings[blockname].mapping, mappings[blockname].extras == ref_mappings[blockname]
 
 
 def test_generate_all_self_mappings():

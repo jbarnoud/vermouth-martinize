@@ -18,6 +18,10 @@ Handle the ITP file format from Gromacs.
 
 import copy
 import itertools
+from collections import defaultdict
+from ..log_helpers import StyleAdapter, get_logger
+
+LOGGER = StyleAdapter(get_logger(__name__))
 
 __all__ = ['write_molecule_itp', ]
 
@@ -111,10 +115,16 @@ def write_molecule_itp(molecule, outfile, header=(), moltype=None,
     # Make sure the molecule contains the information required to write the
     # [atoms] section. The charge and mass can be ommited, if so gromacs take
     # them from the [atomtypes] section of the ITP file.
+    atoms_with_issues = defaultdict(list)
     for attribute in ('atype', 'resid', 'resname', 'atomname',
                       'charge_group'):
-        if not all([attribute in atom for _, atom in molecule.atoms]):
-            raise ValueError('Not all atom have a {}.'.format(attribute))
+        for _, atom in molecule.atoms:
+            if attribute not in atom:
+                atoms_with_issues[attribute].append(atom)
+    if atoms_with_issues:
+        for attr, atoms in atoms_with_issues.items():
+            LOGGER.error('The following atoms do not have a {}: {}', attr, atoms)
+        raise ValueError("Some atoms are missing required attributes.")
 
     # Get the maximum length of each atom field so we can align the fields.
     # Atom indexes are written as a consecutive series starting from 1.

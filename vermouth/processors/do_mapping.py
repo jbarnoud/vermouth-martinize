@@ -18,6 +18,7 @@ Provides a processor that can perform a resolution transformation on a
 molecule.
 """
 from collections import defaultdict
+from copy import deepcopy
 from itertools import product, combinations
 
 import networkx as nx
@@ -274,7 +275,7 @@ def modification_matches(molecule, mappings):
             LOGGER.warning("Can't find modification mappings for the "
                            "modifications {}. The following modification "
                            "mappings are known: {}",
-                           list(group), known_mod_mappings,
+                           list(group), sorted(known_mod_mappings.keys()),
                            type='unmapped-atom')
             continue
         needed_mod_mappings.update(covered_by)
@@ -414,6 +415,8 @@ def apply_mod_mapping(match, molecule, graph_out, mol_to_out, out_to_mol):
     mod_to_out = {}
     # Some nodes of modification will already exist. The question is
     # which, and which index they have in graph_out.
+    # We'll store these anchors for now
+    anchors = set()
     for mod_idx in modification:
         if not node_should_exist(modification, mod_idx):
             # Node does not exist yet.
@@ -423,6 +426,7 @@ def apply_mod_mapping(match, molecule, graph_out, mol_to_out, out_to_mol):
                 out_idx = max(graph_out) + 1
             mod_to_out[mod_idx] = out_idx
             graph_out.add_node(out_idx, **modification.nodes[mod_idx])
+            graph_out.nodes[out_idx].update(modification.nodes[mod_idx].get('replace', {}))
         else:
             # Node should already exist
             # We need to find the out_index of this node. Since the
@@ -445,11 +449,19 @@ def apply_mod_mapping(match, molecule, graph_out, mol_to_out, out_to_mol):
                 raise ValueError("No node found in molecule with "
                                  "atomname {}".format(modification.nodes[mod_idx]['atomname']))
             # Undefined loop variable is guarded against by the else-raise above
+            anchors.add(mod_idx)
             mod_to_out[mod_idx] = out_idx  # pylint: disable=undefined-loop-variable
             graph_out.nodes[out_idx].update(modification.nodes[mod_idx].get('replace', {})) # pylint: disable=undefined-loop-variable
         graph_out.nodes[out_idx]['modifications'] = graph_out.nodes[out_idx].get('modifications', [])
         if modification not in graph_out.nodes[out_idx]['modifications']:
             graph_out.nodes[out_idx]['modifications'].append(modification)
+
+    # FIXME Jank here to ensure the charge_group attributes look reasonable
+    charge_group_start = max(graph_out.nodes[mod_to_out[idx]].get('charge_group', 1) for idx in anchors) if anchors else 1
+    for charge_group, mod_idx in enumerate(modification, charge_group_start):
+        out_idx = mod_to_out[mod_idx]
+        if 'charge_group' not in graph_out.nodes[out_idx]:
+            graph_out.nodes[out_idx]['charge_group'] = charge_group
 
     for mol_idx in mol_to_mod:
         for mod_idx, weight in mol_to_mod[mol_idx].items():
@@ -541,8 +553,8 @@ def do_mapping(molecule, mappings, to_ff, attribute_keep=(), attribute_must=(), 
         `molecule`.
     attribute_stash: tuple[str]
         The attributes that will always be transferred from the input molecule
-        to the produced graph, but prefixed with _old_.Thus they are new attributes
-        and are not conflicting with already defined attributes.
+        to the produced graph, but prefixed with _old_. Thus, they are new
+        attributes and are not conflicting with already defined attributes.
 
 
     Returns
@@ -632,48 +644,45 @@ def do_mapping(molecule, mappings, to_ff, attribute_keep=(), attribute_must=(), 
     to_remove = set()
     for out_idx in out_to_mol:
         mol_idxs = out_to_mol[out_idx].keys()
-        # Keep track of what bead comes from where
-        subgraph = molecule.subgraph(mol_idxs)
-        graph_out.nodes[out_idx]['graph'] = subgraph
-        weights = out_to_mol[out_idx]
-        graph_out.nodes[out_idx]['mapping_weights'] = weights
 
+        # Time to collect the attributes to set. Start by grabbing all the
+        # attributes we already have.
+        node_attrs = deepcopy(graph_out.nodes[out_idx])
+
+        # In all cases, keep track of what bead comes from where
+        subgraph = molecule.subgraph(mol_idxs)
+        node_attrs['graph'] = subgraph
+        weights = out_to_mol[out_idx]
+        node_attrs['mapping_weights'] = weights
+
+        # Now we find attribute values from molecule.
         if out_idx in all_references:
             ref_idx = all_references[out_idx]
-            new_attrs = attrs_from_node(molecule.nodes[ref_idx],
-                                        attribute_keep+attribute_must+attribute_stash)
-            for attr, val in new_attrs.items():
-                # Attrs in attribute_keep we always transfer, those in
-                # attribute_must we transfer only if they're not already in the
-                # created node
-                if attr in attribute_keep or attr not in graph_out.nodes[out_idx]:
-                    graph_out.nodes[out_idx].update(new_attrs)
+            mol_attrs = attrs_from_node(molecule.nodes[ref_idx], attribute_keep + attribute_stash)
+            for attr, val in mol_attrs.items():
+                # This is if/if rather than if/elif on purpose. It could be that
+                # an attribute needs to be both stashed and kept
                 if attr in attribute_stash:
-                    graph_out.nodes[out_idx]["_old_"+attr] = val
+                    node_attrs["_old_" + attr] = val
+                if attr in attribute_keep or attr not in graph_out.nodes[out_idx]:
+                    node_attrs[attr] = val
         else:
             attrs = defaultdict(list)
-            for mol_idx in mol_idxs:
-                new_attrs = attrs_from_node(molecule.nodes[mol_idx],
-                                            attribute_keep+attribute_must+attribute_stash)
-                for attr, val in new_attrs.items():
-                    attrs[attr].append(val)
             attrs_not_sane = []
-            for attr, vals in attrs.items():
-                if attr in attribute_keep or attr not in graph_out.nodes[out_idx]:
-                    if vals:
-                        graph_out.nodes[out_idx][attr] = vals[0]
-                    else:
-                        # No nodes hat the attribute.
-                        graph_out.nodes[out_idx][attr] = None
-                if attr in attribute_stash:
-                    if vals:
-                        graph_out.nodes[out_idx]["_old_"+attr] = vals[0]
-                    else:
-                        # No nodes hat the attribute.
-                        graph_out.nodes[out_idx]["_old_"+attr] = None
+            for mol_idx in mol_idxs:
+                mol_attrs = attrs_from_node(molecule.nodes[mol_idx], attribute_keep + attribute_stash)
+                for attr, val in mol_attrs.items():
+                    attrs[attr].append(val)
 
+            for attr, vals in attrs.items():
                 if not are_all_equal(vals):
                     attrs_not_sane.append(attr)
+                # This is if/if rather than if/elif on purpose. It could be that
+                # an attribute needs to be both stashed and kept
+                if attr in attribute_stash:
+                    node_attrs["_old_" + attr] = vals[0]
+                if attr in attribute_keep or attr not in graph_out.nodes[out_idx]:
+                    node_attrs[attr] = vals[0]
 
             if attrs_not_sane:
                 LOGGER.warning('The attributes {} for atom {} are going to'
@@ -682,6 +691,7 @@ def do_mapping(molecule, mappings, to_ff, attribute_keep=(), attribute_must=(), 
                                attrs_not_sane,
                                format_atom_string(graph_out.nodes[out_idx]),
                                type='inconsistent-data')
+        graph_out.nodes[out_idx].update(node_attrs)
         if graph_out.nodes[out_idx].get('atomname', '') is None:
             to_remove.add(out_idx)
 
@@ -756,6 +766,34 @@ def do_mapping(molecule, mappings, to_ff, attribute_keep=(), attribute_must=(), 
                            [format_atom_string(molecule.nodes[idx])
                             for idx in other_uncovered],
                            type='unmapped-atom')
+
+    # "None to one" mapping - Strictly speaking this cannot happen, but it could
+    # be that output particles map to only particles that were not present in
+    # the input structure. This probably causes massive issues downstream.
+    # For now, flag a sane warning, and at the same time transfer missing "must"
+    # attributes from nearby atoms.
+    for node in graph_out:
+        for attr in attribute_must:
+            if attr not in graph_out.nodes[node]:
+                # We can skip `node`, since if it had the attribute required we
+                # wouldn't be in this mess to begin with.
+                # Set a depth_limit to keep the runtime within bounds.
+                close_nodes = (v for (u, v) in nx.bfs_edges(graph_out, source=node, depth_limit=3))
+                for template_node in close_nodes:
+                    if attr in graph_out.nodes[template_node]:
+                        graph_out.nodes[node][attr] = deepcopy(graph_out.nodes[template_node][attr])
+                        LOGGER.warning("Atom {} did not have a {}, so we took "
+                                       "it from atom {} instead.",
+                                       format_atom_string(graph_out.nodes[node]),
+                                       attr,
+                                       format_atom_string(graph_out.nodes[template_node]),
+                                       type="inconsistent-data")
+                        break
+                else:  # no break, attribute not found
+                    LOGGER.warning("Atom {} does not have a {}, and we couldn't "
+                                   "find a nearby atom that does.",
+                                   format_atom_string(graph_out.nodes[node]),
+                                   attr, type="inconsistent-data")
 
     for interaction_type in modified_interactions:
         for atoms, modifications in modified_interactions[interaction_type].items():
