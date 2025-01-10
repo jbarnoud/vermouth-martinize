@@ -264,3 +264,39 @@ def test_cryst1(caplog, pdbstr, cryst_dict):
     assert parser.cryst == cryst_dict
     if len(cryst_dict) < 8:
         assert any(rec.levelname == 'WARNING' for rec in caplog.records)
+
+
+@pytest.mark.parametrize('pdbstr, status',(
+    ('''SEQRES   1 A    2  SER SER 
+    ATOM      1  N   SER A   1      28.233  12.081  76.383  1.00 32.48           N  
+    ATOM      2  CA  SER A   1      27.540  11.334  75.294  1.00 32.79           C  
+    ATOM      3  C   SER A   1      26.899  12.327  74.331  1.00 32.90           C  
+    ATOM      4  O   SER A   1      27.127  13.535  74.434  1.00 33.05           O  
+    ATOM      5  CB  SER A   1      26.459  10.418  75.878  1.00 32.29           C  
+    ATOM      6  OG  SER A   1      25.340  11.168  76.321  1.00 31.34           O  
+    ATOM      7  N   SER A   2      26.091  11.817  73.405  1.00 33.30           N  
+    ATOM      8  CA  SER A   2      25.418  12.662  72.416  1.00 33.24           C  
+    ATOM      9  C   SER A   2      24.171  13.333  72.984  1.00 32.59           C  
+    ATOM     10  O   SER A   2      23.457  14.042  72.271  1.00 32.68           O  
+    ATOM     11  CB  SER A   2      25.020  11.833  71.196  1.00 33.13           C  
+    ATOM     12  OG  SER A   2      24.049  10.863  71.549  1.00 34.53           O  
+    ''', False),
+    ('''SEQRES   1 A    3  SER SER ALA 
+    ATOM      1  N   SER A   1      28.233  12.081  76.383  1.00 32.48           N  
+    ATOM      2  CA  SER A   1      27.540  11.334  75.294  1.00 32.79           C  
+    ATOM      3  C   SER A   1      26.899  12.327  74.331  1.00 32.90           C  
+    ATOM      4  O   SER A   1      27.127  13.535  74.434  1.00 33.05           O  
+    ATOM      5  CB  SER A   1      26.459  10.418  75.878  1.00 32.29           C  
+    ATOM      6  OG  SER A   1      25.340  11.168  76.321  1.00 31.34           O  
+    ATOM      7  N   SER A   2      26.091  11.817  73.405  1.00 33.30           N  
+    ATOM      8  CA  SER A   2      25.418  12.662  72.416  1.00 33.24           C  
+    ATOM      9  C   SER A   2      24.171  13.333  72.984  1.00 32.59           C  
+    ATOM     10  O   SER A   2      23.457  14.042  72.271  1.00 32.68           O  
+    ATOM     11  CB  SER A   2      25.020  11.833  71.196  1.00 33.13           C  
+    ATOM     12  OG  SER A   2      24.049  10.863  71.549  1.00 34.53           O  
+''', True)))
+def test_seqres(caplog, pdbstr, status):
+    parser = PDBParser()
+    mols = list(parser.parse(pdbstr.splitlines()))
+    assert any(rec.levelname == 'WARNING' for rec in caplog.records) == status
+
