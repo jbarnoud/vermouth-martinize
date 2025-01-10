@@ -260,21 +260,44 @@ def _complete_block(block, bondedtypes):
     # have some control over these dihedral angles through the bondedtypes
     # section.
     all_dihedrals = []
-    for center, dihedrals in itertools.groupby(
-            sorted(block.guess_dihedrals(), key=_dihedral_sorted_center),
-            _dihedral_sorted_center):
+    had_atoms = []
+    for center, dihedrals in itertools.groupby(sorted(block.guess_dihedrals(), key=_dihedral_sorted_center), _dihedral_sorted_center):
+        #print(center)
         if _keep_dihedral(center, block, bondedtypes):
             # TODO: Also sort the dihedrals by index.
             # See src/gromacs/gmxpreprocess/gen_add.cpp::dcomp in the
             # Gromacs source code (see version 2016.3 for instance).
-            atoms = sorted(dihedrals, key=_count_hydrogens)[0]
-            all_dihedrals.append(Interaction(atoms=atoms, parameters=[], meta={}))
+     #       atoms = sorted(dihedrals, key=_count_hydrogens)[0]
+            for atoms in dihedrals:
+                if atoms[::-1] not in had_atoms:
+                    all_dihedrals.append(Interaction(atoms=atoms, parameters=[], meta={}))
+                    had_atoms.append(atoms)
     # TODO: Sort the dihedrals by index
     block.interactions['dihedrals'] = (
         block.interactions.get('dihedrals', []) + all_dihedrals
     )
 
-    # TODO: generate 1-4 interactions between pairs of hydrogen atoms
+    # Add all the angles
+    all_angles = []
+    had_angles = []
+    for atoms in block.guess_angles():
+        if frozenset(atoms) not in had_angles:
+            all_angles.append(Interaction(atoms=atoms, parameters=[], meta={}))
+            had_angles.append(frozenset(atoms))
+
+    # TODO: Sort the dihedrals by index
+    block.interactions['angles'] = (block.interactions.get('angles', []) + all_angles)
+
+    # TODO: generate 1-4 interactions between all atoms and keep pairs of hydrogen atoms
+    # if HH14 is set to 1
+    pairs = []
+    for node in block.nodes:
+        paths = nx.single_source_shortest_path(G=block, source=node, cutoff=4)
+        neighbours = [node for node, path in paths.items() if 4 == len(path)]
+        for ndx in neighbours:
+             if frozenset([ndx, node]) not in pairs:
+                block.interactions['pairs'].append(Interaction(atoms=(node, ndx), parameters=[], meta={}))
+                pairs.append(frozenset([ndx, node]))
 
     # Add function types to the interaction parameters. This is done as a
     # post processing step to cluster as much interaction specific code
@@ -285,12 +308,13 @@ def _complete_block(block, bondedtypes):
     # twice. Yet, none of the RTP files distributed with Gromacs 2016.3 causes
     # issue.
     functypes = {
-        'bonds': bondedtypes.bonds,
-        'angles': bondedtypes.angles,
-        'dihedrals': bondedtypes.dihedrals,
-        'impropers': bondedtypes.impropers,
-        'exclusions': 1,
-        'cmap': 1,
+        'bonds': str(bondedtypes.bonds),
+        'angles': str(bondedtypes.angles),
+        'dihedrals': str(bondedtypes.dihedrals),
+        'impropers': str(bondedtypes.impropers),
+        'exclusions': '1',
+        'cmap': '1',
+        'pairs': '1',
     }
     for name, interactions in block.interactions.items():
         for interaction in interactions:
@@ -466,6 +490,8 @@ def _dihedral_sorted_center(atoms):
     #return sorted(atoms[1:-1])
     return atoms[1:-1]
 
+def _angle_sorted_center(atoms):
+    return atoms[1]
 
 def read_rtp(lines, force_field):
     """
@@ -519,6 +545,5 @@ def read_rtp(lines, force_field):
     # inter-residues information. We need to split the pre-blocks into
     # blocks and links.
     blocks, links = _split_blocks_and_links(pre_blocks)
-
     force_field.blocks.update(blocks)
     force_field.links.extend(links)
