@@ -28,6 +28,7 @@ from ..file_writer import deferred_open
 from ..pdb import pdb
 from ..system import System
 from ..processors.processor import Processor
+from ..processors import SortMoleculeAtoms
 from ..selectors import is_protein, selector_has_position, filter_minimal, select_all
 from .. import utils
 from ..log_helpers import StyleAdapter, get_logger
@@ -176,10 +177,14 @@ def run_mdtraj(system):
         The secondary structure sequences of all the molecules are combined
         in a single list without delimitation.
     """
+    sys_copy = system.copy()
+    # precaution for large systems; mdtraj requires all residues to be
+    # grouped together otherwise dssp fails
+    SortMoleculeAtoms(target_attr='atomid').run_system(sys_copy)
     tmpfile_handle, tmpfile_name = tempfile.mkstemp(suffix='.pdb', text=True,
                                                     dir='.', prefix='dssp_in_')
     tmpfile_handle = os.fdopen(tmpfile_handle, mode='w')
-    tmpfile_handle.write(pdb.write_pdb_string(system, conect=False))
+    tmpfile_handle.write(pdb.write_pdb_string(sys_copy, conect=False))
     tmpfile_handle.close()
 
     try:
