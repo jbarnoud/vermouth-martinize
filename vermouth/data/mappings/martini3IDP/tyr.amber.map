@@ -1,0 +1,48 @@
+; Copyright 2018 University of Groningen
+;
+; Licensed under the Apache License, Version 2.0 (the "License");
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+;
+;    http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an "AS IS" BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+
+[ molecule ]
+TYR
+
+[from]
+amber
+
+[to]
+martini3IDP
+
+[ mapping ]
+amber27 amber36
+
+[ atoms ]
+    1     N    BB
+    2    HN    BB
+    3    CA    BB
+    4    HA    !BB
+    5    CB   SC1
+    6   HB1   !SC1
+    7   HB2   !SC1
+    8    CG   SC1
+    9   CD1   SC2
+   10   HD1   SC2
+   11   CE1   SC2
+   12   HE1   SC2
+   13    CZ   SC4
+   14    OH   SC4
+   15    HH   SC4
+   16   CD2   SC3
+   17   HD2   SC3
+   18   CE2   SC3
+   19   HE2   SC3
+   20     C    BB
+   21     O    BB

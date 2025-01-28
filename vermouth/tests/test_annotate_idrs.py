@@ -58,3 +58,39 @@ def test_make_disorder_string(test_molecule,
         else:
             result.append(False)
     assert result == expected
+
+@pytest.mark.parametrize('idr_regions, expected',(
+        ([(1, 4)],
+         {0: "C", 1: "C", 2: "C",
+          3: "C", 4: "C",
+          5: "C",
+          6: "C", 7: "C", 8: "C"}),
+        ([(1, 2)],
+         {0: "C", 1: "C", 2: "C",
+          3: "C", 4: "C",
+          5: "H",
+          6: "H", 7: "H", 8: "H"}),
+
+))
+def test_ss_reassign(test_molecule, idr_regions, expected):
+    secstruc = {1: "H", 2: "H", 3: "H", 4: "H"}  # i.e. all ss is H to begin
+    resnames = {0: "A", 1: "A", 2: "A",
+                3: "B", 4: "B",
+                5: "C",
+                6: "D", 7: "D", 8: "D"}
+    atypes = {0: "P1", 1: "SN4a", 2: "SN4a",
+              3: "SP1", 4: "C1",
+              5: "TP1",
+              6: "P1", 7: "SN3a", 8: "SP4"}
+
+    system = create_sys_all_attrs(test_molecule,
+                                  moltype="molecule_0",
+                                  secstruc=secstruc,
+                                  defaults={"chain": "A"},
+                                  attrs={"resname": resnames,
+                                         "atype": atypes})
+
+    AnnotateIDRs(id_regions=idr_regions).run_system(system)
+
+    for key, node in system.molecules[0].nodes.items():
+        assert system.molecules[0].nodes[key]["cgsecstruct"] == expected[key]

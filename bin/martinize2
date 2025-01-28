@@ -78,6 +78,9 @@ LOGGER = StyleAdapter(LOGGER)
 
 VERSION = "martinize with vermouth {}".format(vermouth.__version__)
 
+SS_CG = {'1': 'H', '2': 'H', '3': 'H', 'H': 'H', 'G': 'H', 'I': 'H',
+         'B': 'E', 'E': 'E', 'T': 'T', 'S': 'S', 'C': 'C'}
+
 
 def read_system(path, ignore_resnames=(), ignh=None, modelidx=None):
     """
@@ -975,16 +978,6 @@ def entry():
                            'for this force field',
                            type="missing-feature")
 
-    ss_sequence = list(
-        itertools.chain(
-            *(
-                dssp.sequence_from_residues(molecule, "secstruct")
-                for molecule in system.molecules
-                if selectors.is_protein(molecule)
-            )
-        )
-    )
-
     if args.cystein_bridge == "none":
         vermouth.RemoveCysteinBridgeEdges().run_system(system)
     elif args.cystein_bridge != "auto":
@@ -1009,6 +1002,17 @@ def entry():
         delete_unknown=True,
         idrs=args.idr_tune,
         disordered_regions=args.water_idrs
+    )
+
+    ss_sequence = list(
+        itertools.chain(
+            *(
+                SS_CG[i]
+                for i in dssp.sequence_from_residues(molecule, "cgsecstruct")
+                for molecule in system.molecules
+                if selectors.is_protein(molecule) if i is not None
+            )
+        )
     )
 
     # Apply position restraints if required.
@@ -1037,6 +1041,12 @@ def entry():
         defines = ("GO_VIRT",)
         itp_paths = {"atomtypes": "go_atomtypes.itp",
                      "nonbond_params": "go_nbparams.itp"}
+        if not args.water_bias:
+            # this ensures that disordered-folded go bonds get removed regardless of force field.
+            vermouth.processors.ComputeWaterBias(args.water_bias,
+                                                 {s: float(eps) for s, eps in args.water_bias_eps},
+                                                 [(int(start), int(stop)) for start, stop in args.water_idrs],
+                                                ).run_system(system)
     else:
         # don't write non-bonded interactions
         itp_paths = []

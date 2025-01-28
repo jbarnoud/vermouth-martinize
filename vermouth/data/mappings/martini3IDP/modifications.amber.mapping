@@ -1,0 +1,506 @@
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+
+[ from blocks ]
+C-ter
+[ to blocks ]
+C-ter
+
+[ from nodes ]
+N
+HN
+
+[ from edges ]
+HN N
+N CA
+
+[ mapping ]
+CA BB
+C  BB
+O  BB
+OXT BB
+
+
+[modification]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+N-ter
+[ to blocks ]
+N-ter
+
+[ from nodes ]
+C
+O
+
+[ from edges ]
+C O
+CA C
+
+[ mapping ]
+HN2 BB
+HN3 BB
+N   BB
+CA  BB
+C   BB
+O   BB
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+
+[ from blocks ]
+COOH-ter
+[ to blocks ]
+COOH-ter
+
+[ from nodes ]
+N
+HN
+
+[ from edges ]
+HN N
+N CA
+
+[ mapping ]
+HN BB
+N BB
+CA BB
+C  BB
+O  BB
+HO BB
+OXT BB
+
+
+[modification]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+NH2-ter
+[ to blocks ]
+NH2-ter
+
+[ from nodes ]
+C
+O
+
+[ from edges ]
+C O
+CA C
+
+[ mapping ]
+HN2 BB
+N   BB
+CA  BB
+C   BB
+O   BB
+
+
+[modification]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+HIS-HP
+[ to blocks ]
+HIS-HP
+
+[ from nodes ]
+N     
+CA  
+HA  
+CB  
+HB1 
+HB2 
+CG
+CD2
+HD2
+HE1
+C
+O
+H
+[ from edges ]
+     N     H
+     N    CA
+    CA    HA
+    CA    CB
+    CA     C
+    CB   HB2
+    CB   HB1
+    CB    CG
+    CG   ND1
+    CG   CD2
+   CE1   HE1
+   NE2   CD2
+   CD2   HD2
+     C     O
+[ mapping ]
+HD1 SC3
+N    BB
+H    BB
+CA    BB
+CB   SC1
+  CG   SC1
+ NE2   SC2
+ HE2   SC2
+ CD2   SC2
+ HD2   SC2
+ ND1   SC3
+ CE1   SC3
+ HE1   SC3
+   C    BB
+   O    BB
+
+
+[modification]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+HIS-HE
+[ to blocks ]
+HIS-HE
+
+[ from nodes ]
+N
+CA
+HA
+CB
+HB1
+HB2
+CG
+CD2
+HD2
+C
+O
+H
+HE1
+[ from edges ]
+     N     H
+     N    CA
+    CA    HA
+    CA    CB
+    CA     C
+    CB   HB2
+    CB   HB1
+    CB    CG
+    CG   ND1
+    CG   CD2
+   CE1   HE1
+   NE2   CD2
+   CD2   HD2
+     C     O
+[ mapping ]
+N    BB
+H    BB
+CA    BB
+CB   SC1
+  CG   SC1
+ NE2   SC2
+ HE2   SC2
+ CD2   SC2
+ HD2   SC2
+ ND1   SC3
+ CE1   SC3
+ HE1   SC3
+   C    BB
+   O    BB
+
+
+[modification]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+HIS-HD
+[ to blocks ]
+HIS-HD
+
+[ from nodes ]
+N     
+CA  
+HA  
+CB  
+HB1 
+HB2 
+CG
+CD2
+HD2
+C
+O
+H
+HE1
+[ from edges ]
+     N     H
+     N    CA
+    CA    HA
+    CA    CB
+    CA     C
+    CB   HB2
+    CB   HB1
+    CB    CG
+    CG   ND1
+    CG   CD2
+   CE1   HE1
+   NE2   CD2
+   CD2   HD2
+     C     O
+[ mapping ]
+HD1 SC3
+N    BB
+H    BB
+CA    BB
+CB   SC1
+  CG   SC1
+ NE2   SC2
+ CD2   SC2
+ HD2   SC2
+ ND1   SC3
+ CE1   SC3
+ HE1   SC3
+   C    BB
+   O    BB
+
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+GLU-HE1
+[ to blocks ]
+GLU-HE1
+
+[ from nodes ]
+CD
+OE2
+CB
+CG
+HD1
+HD2
+HG1
+HG2
+[ from edges ]
+CB CG
+CG CD
+CD OE1
+CD OE2
+CG HG1
+CG HG2
+CD HD1
+CD HD2
+
+[ mapping ]
+CD   SC1
+OE1  SC1
+OE2  SC1
+HE1  SC1
+CB   SC1
+CG   SC1
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+GLU-HE2
+[ to blocks ]
+GLU-HE2
+
+[ from nodes ]
+CD
+OE1
+CB
+CG
+HD1
+HD2
+HG1
+HG2
+[ from edges ]
+CB CG
+CG CD
+CD OE1
+CD OE2
+CG HG1
+CG HG2
+CD HD1
+CD HD2
+
+[ mapping ]
+CD   SC1
+OE1  SC1
+OE2  SC1
+HE2  SC1
+CB   SC1
+CG   SC1
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+GLU-HE1
+[ to blocks ]
+GLU-HE1
+
+[ from nodes ]
+CD
+OE2
+CB
+CG
+HD1
+HD2
+HG1
+HG2
+[ from edges ]
+CB CG
+CG CD
+CD OE1
+CD OE2
+CG HG1
+CG HG2
+CD HD1
+CD HD2
+
+[ mapping ]
+CD   SC1
+OE1  SC1
+OE2  SC1
+HE1  SC1
+CB   SC1
+CG   SC1
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+GLU-HE2
+[ to blocks ]
+GLU-HE2
+
+[ from nodes ]
+CD
+OE1
+CB
+CG
+HD1
+HD2
+HG1
+HG2
+[ from edges ]
+CB CG
+CG CD
+CD OE1
+CD OE2
+CG HG1
+CG HG2
+CD HD1
+CD HD2
+
+[ mapping ]
+CD   SC1
+OE1  SC1
+OE2  SC1
+HE2  SC1
+CB   SC1
+CG   SC1
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+ASP-HD1
+[ to blocks ]
+ASP-HD1
+[ from nodes ]
+    CB
+   HB1
+   HB2
+    CG
+   OD2
+[ from edges ]
+CG CB
+CB HB1
+CB HB2
+CG OD1
+CG OD2
+[ mapping ]
+CG   SC1
+OD1  SC1
+OD2  SC1
+HD1  SC1
+CB   SC1
+CG   SC1
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+ASP-HD2
+[ to blocks ]
+ASP-HD2
+[ from nodes ]
+    CB
+   HB1
+   HB2
+    CG
+   OD1
+[ from edges ]
+CG CB
+CB HB1
+CB HB2
+CG OD1
+CG OD2
+[ mapping ]
+CG   SC1
+OD1  SC1
+OD2  SC1
+HD2  SC1
+CB   SC1
+CG   SC1
+
+[ modification ]
+[ from ]
+amber
+[ to ]
+martini3IDP
+[ from blocks ]
+LYS-LSN
+[ to blocks ]
+LYS-LSN
+[ from nodes ]
+CE
+HE1
+HE2
+[ from edges ]
+CE HE1
+CE HE2
+CE NZ
+[ mapping ]
+CE  SC2
+HE1 SC2
+HE2 SC2
+NZ  SC2
+HZ1 SC2
+HZ2 SC2
