@@ -68,8 +68,8 @@ class ForceField:
         self.name = None
         self.citations = {}
         if directory is not None:
-            self.read_from(directory)
             self.name = os.path.basename(str(directory))
+            self.read_from(directory)
         if name is not None:
             self.name = name
         if self.name is None:

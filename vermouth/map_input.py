@@ -441,25 +441,23 @@ def read_mapping_directory(directory, force_fields):
     return dict(mappings)
 
 
-def generate_self_mappings(blocks):
+def generate_self_mappings(force_field):
     """
-    Generate self mappings from a collection of blocks.
+    Generate self mappings from a modification for the blocks and modifications.
 
     A self mapping is a mapping that maps a force field to itself. Applying
     such mapping is applying a neutral transformation.
 
     Parameters
     ----------
-    blocks: dict[str, networkx.Graph]
-        A dictionary of blocks with block names as keys and the blocks
-        themselves as values. The blocks must be instances of :class:`networkx.Graph`
-        with each node having an 'atomname' attribute.
+    force_field: vermouth.forcefield.ForceField
+        A force field containing Blocks and Modifications
 
     Returns
     -------
-    mappings: dict[str, tuple]
-        A dictionary of mappings where the keys are the names of the blocks,
-        and the values are tuples like (mapping, weights, extra).
+    mappings: dict[~vermouth.map_parser.Mapping]
+        A dictionary of mappings where the keys are the names of the
+        blocks/modifications, and the values are Mappings.
 
     Raises
     ------
@@ -474,10 +472,17 @@ def generate_self_mappings(blocks):
         Generate self mappings for a list of force fields.
     """
     mappings = {}
-    for name, block in blocks.items():
+    for name, block in force_field.blocks.items():
         mapping = Mapping(block, block, {idx: {idx: 1} for idx in block.nodes},
-                          {}, ff_from=block.force_field, ff_to=block.force_field,
+                          {}, ff_from=force_field, ff_to=force_field,
                           extra=[], type='block', names=(name,))
+        mappings[name] = mapping
+    for name, mod in force_field.modifications.items():
+        for n in mod:
+            mod.nodes[n]['modifications'] = mod.nodes[n].get('modifications', []) + [mod]
+        mapping = Mapping(mod, mod, {idx: {idx: 1} for idx in mod.nodes},
+                          {}, ff_from=force_field, ff_to=force_field,
+                          extra=[], type='modification', names=(name,))
         mappings[name] = mapping
     return mappings
 
@@ -500,7 +505,7 @@ def generate_all_self_mappings(force_fields):
     mappings = collections.defaultdict(dict)
     for force_field in force_fields:
         name = force_field.name
-        mappings[name][name] = generate_self_mappings(force_field.blocks)
+        mappings[name][name] = generate_self_mappings(force_field)
     return dict(mappings)
 
 

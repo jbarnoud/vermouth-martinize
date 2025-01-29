@@ -18,6 +18,10 @@ Handle the ITP file format from Gromacs.
 
 import copy
 import itertools
+from collections import defaultdict
+from ..log_helpers import StyleAdapter, get_logger
+
+LOGGER = StyleAdapter(get_logger(__name__))
 
 __all__ = ['write_molecule_itp', ]
 
@@ -53,6 +57,21 @@ def _interaction_sorting_key(interaction):
         group = ''
 
     return (conditional, group)
+
+
+def _sort_atoms(atoms, name):
+    if name[:4] in ('bond', 'pair'):
+        return sorted(atoms)
+    elif name.startswith('angle'):
+        return atoms if atoms[0] < atoms[-1] else list(reversed(atoms))
+    elif name.startswith('dihedral'):
+        return atoms if atoms[1] < atoms[2] else list(reversed(atoms))
+    return atoms
+
+def _sort_interaction(atoms, name):
+    if name.startswith('angle'):
+        return (atoms[1], tuple(atoms))
+    else: return (min(atoms), tuple(atoms))
 
 
 def write_molecule_itp(molecule, outfile, header=(), moltype=None,
@@ -111,10 +130,16 @@ def write_molecule_itp(molecule, outfile, header=(), moltype=None,
     # Make sure the molecule contains the information required to write the
     # [atoms] section. The charge and mass can be ommited, if so gromacs take
     # them from the [atomtypes] section of the ITP file.
+    atoms_with_issues = defaultdict(list)
     for attribute in ('atype', 'resid', 'resname', 'atomname',
                       'charge_group'):
-        if not all([attribute in atom for _, atom in molecule.atoms]):
-            raise ValueError('Not all atom have a {}.'.format(attribute))
+        for _, atom in molecule.atoms:
+            if attribute not in atom:
+                atoms_with_issues[attribute].append(atom)
+    if atoms_with_issues:
+        for attr, atoms in atoms_with_issues.items():
+            LOGGER.error('The following atoms do not have a {}: {}', attr, atoms)
+        raise ValueError("Some atoms are missing required attributes.")
 
     # Get the maximum length of each atom field so we can align the fields.
     # Atom indexes are written as a consecutive series starting from 1.
@@ -193,10 +218,12 @@ def write_molecule_itp(molecule, outfile, header=(), moltype=None,
         # object to distinguish them from the proper dihedrals. Yet, they
         # should be written under the [ dihedrals ] section of the ITP file.
         if name == 'impropers':
-            name = 'dihedrals'
-        outfile.write('[ {} ]\n'.format(name))
+            section_name = 'dihedrals'
+        else:
+            section_name = name
+        outfile.write('[ {} ]\n'.format(section_name))
         seen_sections.add(name)
-        for line in pre_section_lines.get(name, []):
+        for line in pre_section_lines.get(section_name, []):
             outfile.write(line + '\n')
         interactions_group_sorted = sorted(
             interactions,
@@ -212,11 +239,12 @@ def write_molecule_itp(molecule, outfile, header=(), moltype=None,
                 outfile.write('{} {}\n'.format(conditional_key, conditional[0]))
             if group:
                 outfile.write('; {}\n'.format(group))
+            interactions_in_group = sorted(interactions_in_group, key=lambda i: _sort_interaction(_sort_atoms(list(map(correspondence.get, i.atoms)), name), name))
             for interaction in interactions_in_group:
                 atoms = ['{atom_idx:>{max_length[idx]}}'
-                         .format(atom_idx=correspondence[x],
+                         .format(atom_idx=x,
                                  max_length=max_length)
-                         for x in interaction.atoms]
+                         for x in _sort_atoms(list(map(correspondence.get, interaction.atoms)), name)]
                 parameters = ' '.join(str(x) for x in interaction.parameters)
                 comment = ''
                 if 'comment' in interaction.meta:

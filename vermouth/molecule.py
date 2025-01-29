@@ -17,6 +17,7 @@ from collections import defaultdict, OrderedDict, namedtuple
 import copy
 from functools import partial
 import itertools
+import re
 
 import networkx as nx
 import numpy as np
@@ -104,6 +105,23 @@ class Choice(LinkPredicate):
         Apply the comparison.
         """
         return node.get(key) in self.value
+
+
+class Regex(LinkPredicate):
+    """
+    Test if an attribute matches the provided regular expression.
+
+    Parameters
+    ----------
+    value: re.Pattern
+        The regular expression
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.value = re.compile(self.value)
+
+    def match(self, node, key):
+        return self.value.fullmatch(node.get(key, '<ABSENT>')) is not None
 
 
 class NotDefinedOrNot(LinkPredicate):
@@ -351,6 +369,18 @@ class Molecule(nx.Graph):
     node_dict_factory = OrderedDict
 
     def __init__(self, *args, **kwargs):
+        if args and isinstance(args[0], Molecule):
+            super().__init__(*args, **kwargs)
+            other = args[0]
+            self.meta = copy.deepcopy(other.meta)
+            self._force_field = other._force_field
+            self.nrexcl = other.nrexcl
+            self.interactions = copy.deepcopy(other.interactions)
+            self.citations = copy.deepcopy(other.citations)
+            self.log_entries = copy.deepcopy(other.log_entries)
+            self.max_node = other.max_node
+            self.box = other.box
+            return
         self.meta = kwargs.pop('meta', {})
         self._force_field = kwargs.pop('force_field', None)
         self.nrexcl = kwargs.pop('nrexcl', None)
@@ -742,7 +772,6 @@ class Molecule(nx.Graph):
                 # Renumber any existing formatting maps
                 fmt_args = [{name: correspondence[old] for (name, old) in fmt_arg.items()} for fmt_arg in fmt_args]
                 self.log_entries[loglevel][entry] += fmt_args + [correspondence]
-
         return correspondence
 
     def share_moltype_with(self, other):

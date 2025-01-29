@@ -17,11 +17,13 @@ Handle the RTP format from Gromacs.
 """
 
 import collections
-import itertools
+import copy
 import networkx as nx
 
 from ..molecule import Block, Link, Interaction
-from .. import utils
+
+from ..log_helpers import StyleAdapter, get_logger
+LOGGER = StyleAdapter(get_logger(__name__))
 
 __all__ = ['read_rtp']
 
@@ -192,6 +194,7 @@ def _base_rtp_parser(interaction_name, natoms):
             interactions.append(Interaction(atoms=atoms,
                                             parameters=parameters,
                                             meta={}))
+            block.add_nodes_from(atoms)
         block.interactions[interaction_name] = interactions
     return wrapped
 
@@ -200,6 +203,7 @@ def _parse_bondedtypes(section):
     # Default taken from
     # 'src/gromacs/gmxpreprocess/resall.cpp::read_resall' in the Gromacs
     # source code.
+
     defaults = _BondedTypes(bonds=1, angles=1, dihedrals=1,
                             impropers=1, all_dihedrals=0,
                             nrexcl=3, HH14=1, remove_dih=1)
@@ -233,18 +237,6 @@ def _parse_bondedtypes(section):
     return bondedtypes
 
 
-def _count_hydrogens(names):
-    return len([name for name in names if utils.first_alpha(name) == 'H'])
-
-
-def _keep_dihedral(center, block, bondedtypes):
-    if (not bondedtypes.all_dihedrals) and block.has_dihedral_around(center):
-        return False
-    if bondedtypes.remove_dih and block.has_improper_around(center):
-        return False
-    return True
-
-
 def _complete_block(block, bondedtypes):
     """
     Add information from the bondedtypes section to a block.
@@ -253,28 +245,6 @@ def _complete_block(block, bondedtypes):
     interactions.
     """
     block.make_edges_from_interactions()
-
-    # Generate missing dihedrals
-    # As pdb2gmx generates all the possible dihedral angles by default,
-    # RTP files are written assuming they will be generated. A RTP file
-    # have some control over these dihedral angles through the bondedtypes
-    # section.
-    all_dihedrals = []
-    for center, dihedrals in itertools.groupby(
-            sorted(block.guess_dihedrals(), key=_dihedral_sorted_center),
-            _dihedral_sorted_center):
-        if _keep_dihedral(center, block, bondedtypes):
-            # TODO: Also sort the dihedrals by index.
-            # See src/gromacs/gmxpreprocess/gen_add.cpp::dcomp in the
-            # Gromacs source code (see version 2016.3 for instance).
-            atoms = sorted(dihedrals, key=_count_hydrogens)[0]
-            all_dihedrals.append(Interaction(atoms=atoms, parameters=[], meta={}))
-    # TODO: Sort the dihedrals by index
-    block.interactions['dihedrals'] = (
-        block.interactions.get('dihedrals', []) + all_dihedrals
-    )
-
-    # TODO: generate 1-4 interactions between pairs of hydrogen atoms
 
     # Add function types to the interaction parameters. This is done as a
     # post processing step to cluster as much interaction specific code
@@ -292,9 +262,9 @@ def _complete_block(block, bondedtypes):
         'exclusions': 1,
         'cmap': 1,
     }
-    for name, interactions in block.interactions.items():
-        for interaction in interactions:
-            interaction.parameters.insert(0, functypes[name])
+    for functype in functypes:
+        for interaction in block.interactions[functype]:
+            interaction.parameters.insert(0, functypes[functype])
 
     # Set the nrexcl to the block.
     block.nrexcl = bondedtypes.nrexcl
@@ -325,12 +295,15 @@ def _split_blocks_and_links(pre_blocks):
         Split an individual pre-block into a block and a link.
     """
     blocks = {}
-    links = []
+    all_links = []
     for name, pre_block in pre_blocks.items():
-        block, link = _split_block_and_link(pre_block)
+        block, links = _split_block_and_link(pre_block)
         blocks[name] = block
-        links.append(link)
-    return blocks, links
+        if links:
+            for link in links:
+                if link:
+                    all_links.append(link)
+    return blocks, all_links
 
 
 def _split_block_and_link(pre_block):
@@ -351,7 +324,7 @@ def _split_block_and_link(pre_block):
     -------
     block: Block
         All the intra-residue information.
-    link: Link
+    links: List[Link]
         All the inter-residues information.
     """
     block = Block(force_field=pre_block.force_field)
@@ -370,44 +343,29 @@ def _split_block_and_link(pre_block):
     except AttributeError:
         pass
 
-    # Filter the particles from neighboring residues out of the block.
-    for atom in pre_block.atoms:
-        if not atom['atomname'].startswith('+-'):
-            atom['resname'] = pre_block.name
-            block.add_atom(atom)
-        link.add_node(atom['atomname'])
+    links = []
 
-    # Create the edges of the link and block based on the edges in the pre-block.
-    # This will create too many edges in the link, but the useless ones will be
-    # pruned latter.
-    link.add_edges_from(pre_block.edges)
-    block.add_edges_from(edge for edge in pre_block.edges
-                         if not any(node[0] in '+-' for node in edge))
-
-    # Split the interactions from the pre-block between the block (for
-    # intra-residue interactions) and the link (for inter-residues ones).
-    # The "relevant_atoms" set keeps track of what particles are
-    # involved in the link. This will allow to prune the link without
-    # iterating again through its interactions.
-    relevant_atoms = set()
-    for name, interactions in pre_block.interactions.items():
+    for interaction_type, interactions in pre_block.interactions.items():
         for interaction in interactions:
-            for_link = any(atom[0] in '+-' for atom in interaction.atoms)
-            if for_link:
-                link.interactions[name].append(interaction)
-                relevant_atoms.update(interaction.atoms)
-            else:
-                block.interactions[name].append(interaction)
+            # Atoms that are not defined in the atoms section but only in interactions
+            # (because they're part of the neighbours), don't have an atomname
+            atomnames = [pre_block.nodes[n_idx].get('atomname') or n_idx for n_idx in interaction.atoms]
+            if any(atomname[0] in '+-' for atomname in atomnames):
+                link = Link(pre_block.subgraph(interaction.atoms))
+                if not nx.is_connected(link):
+                    LOGGER.info('Discarding {} between atoms {} for link'
+                                ' defined in residue {} in force field {}'
+                                ' because it is disconnected.',
+                                interaction_type, ' '.join(interaction.atoms),
+                                pre_block.name, pre_block.force_field.name,
+                                type='inconsistent-data')
+                    continue
+                links.append(link)
 
-    # Prune the link to keep only the edges and particles that are
-    # relevant.
-    nodes = set(link.nodes())
-    link.remove_nodes_from(nodes - relevant_atoms)
-    # Some interactions do not generate nodes (impropers for instance). If a
-    # node is only described in one of such interactions, then the node never
-    # appears in the link. Here we make sure these nodes exists even if they
-    # are note connected.
-    link.add_nodes_from(relevant_atoms)
+    block = pre_block
+    block.remove_nodes_from([n for n in pre_block if pre_block.nodes[n].get('atomname', n)[0] in '+-'])
+    for node in block:
+        block.nodes[node]['resname'] = block.name
 
     # Atoms from a links are matched against a molecule based on its node
     # attributes. The name is a primary criterion, but other criteria can be
@@ -419,39 +377,48 @@ def _split_block_and_link(pre_block):
     # RTP files convey the order by prefixing the names with + or -. We need to
     # get rid of these prefixes.
     order = {'+': +1, '-': -1}
-    relabel_mapping = {}
-    for idx, node in enumerate(link.nodes()):
-        atomname = node
-        if node[0] in '+-':
-            link.nodes[node]['order'] = order[node[0]]
-            atomname = atomname[1:]
-        else:
-            link.nodes[node]['order'] = 0
-            link.nodes[node]['resname'] = block.name
-        link.nodes[node]['atomname'] = atomname
-        relabel_mapping[node] = idx
-    nx.relabel_nodes(link, relabel_mapping, copy=False)
 
-    # By relabelling the nodes, we lost the relations between interactions and
-    # nodes, so we need to relabel the atoms in the interactions
-    new_interactions = collections.defaultdict(list)
-    for name, interactions in link.interactions.items():
-        for interaction in interactions:
-            atoms = tuple(relabel_mapping[atom] for atom in interaction.atoms)
-            new_interactions[name].append(Interaction(
-                atoms=atoms,
-                parameters=interaction.parameters,
-                meta=interaction.meta
-            ))
-    link.interactions = new_interactions
+    for link in links:
+        relabel_mapping = {}
+        # (Deep)copy interactions, since relabel_nodes removes/adds nodes, which
+        # wipes out all interactions otherwise.
+        interactions = copy.deepcopy(link.interactions)
+        remove_attrs = 'atype charge charge_group'.split()
+        for idx, node in enumerate(link.nodes()):
+            atomname = node
+            if node[0] in '+-':
+                link.nodes[node]['order'] = order[node[0]]
+                atomname = atomname[1:]
+            else:
+                link.nodes[node]['order'] = 0
+                link.nodes[node]['resname'] = block.name
+            for attr in remove_attrs:
+                if attr in link.nodes[node]:
+                    del link.nodes[node][attr]
+            link.nodes[node]['atomname'] = atomname
+            relabel_mapping[node] = idx
+        nx.relabel_nodes(link, relabel_mapping, copy=False)
 
+        # By relabelling the nodes, we lost the relations between interactions and
+        # nodes, so we need to relabel the atoms in the interactions
+        new_interactions = collections.defaultdict(list)
+        for name, interactions in interactions.items():
+            for interaction in interactions:
+                atoms = tuple(relabel_mapping[atom] for atom in interaction.atoms)
+                if not any(link.nodes[node]['order'] for node in atoms):
+                    continue
+                new_interactions[name].append(Interaction(
+                    atoms=atoms,
+                    parameters=interaction.parameters,
+                    meta=interaction.meta
+                ))
+        link.interactions = new_interactions
+        link.interactions = dict(link.interactions)
 
     # Revert the interactions back to regular dicts to avoid creating
     # keys when querying them.
     block.interactions = dict(block.interactions)
-    link.interactions = dict(link.interactions)
-
-    return block, link
+    return block, links
 
 
 def _clean_lines(lines):
@@ -460,11 +427,6 @@ def _clean_lines(lines):
         splitted = line.split(';', 1)
         if splitted[0].strip():
             yield splitted[0]
-
-
-def _dihedral_sorted_center(atoms):
-    #return sorted(atoms[1:-1])
-    return atoms[1:-1]
 
 
 def read_rtp(lines, force_field):
@@ -522,3 +484,4 @@ def read_rtp(lines, force_field):
 
     force_field.blocks.update(blocks)
     force_field.links.extend(links)
+    force_field.variables['bondedtypes'] = bondedtypes

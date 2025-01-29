@@ -174,8 +174,8 @@ def martinize(system, mappings, to_ff, delete_unknown=False, idrs=False, disorde
         mappings=mappings,
         to_ff=to_ff,
         delete_unknown=delete_unknown,
-        attribute_keep=("cgsecstruct", "chain"),
-        attribute_must=("resname",),
+        attribute_keep=("cgsecstruct", "resname", "chain"),
+        attribute_must=("resname", "atype"),
         attribute_stash=("resid",),
     ).run_system(system)
     LOGGER.info("Averaging the coordinates.", type="step")
@@ -1010,6 +1010,9 @@ def entry():
         idrs=args.idr_tune,
         disordered_regions=args.water_idrs
     )
+    if 'bondedtypes' in known_force_fields[args.to_ff].variables:
+        LOGGER.info("Generating implicit interactions for RTP force field", type='step')
+        vermouth.RTPPolisher().run_system(system)
 
     # Apply position restraints if required.
     if args.posres != "none":

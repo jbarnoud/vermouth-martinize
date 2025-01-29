@@ -407,6 +407,7 @@ class MappingBuilder:
         weight: float
             The weight associated with this partial mapping.
         """
+
         nodes_from = list(self.blocks_from.find_atoms(**attrs_from))
         nodes_to = list(self.blocks_to.find_atoms(**attrs_to))
         assert len(nodes_from) == len(nodes_to) == 1

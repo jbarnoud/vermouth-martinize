@@ -45,3 +45,4 @@ from .merge_all_molecules import MergeAllMolecules
 from .annotate_mut_mod import AnnotateMutMod
 from .water_bias import ComputeWaterBias
 from .annotate_idrs import AnnotateIDRs
+from .rtp_polisher import RTPPolisher

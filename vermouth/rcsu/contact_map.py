@@ -731,7 +731,7 @@ def read_go_map(system, file_path):
             if len(tokens) == 0:
                 continue
 
-            if tokens[0] == "R" and len(tokens) == 18:
+            if tokens[0] == "R" and len(tokens) >= 18:
                 # this is a bad place to filter but follows
                 # the old script
                 if tokens[11] == "1" or (tokens[11] == "0" and tokens[14] == "1"):
