@@ -78,7 +78,6 @@ LOGGER = StyleAdapter(LOGGER)
 
 VERSION = "martinize with vermouth {}".format(vermouth.__version__)
 
-
 def read_system(path, ignore_resnames=(), ignh=None, modelidx=None):
     """
     Read a system from a PDB or GRO file.
@@ -1037,6 +1036,12 @@ def entry():
         defines = ("GO_VIRT",)
         itp_paths = {"atomtypes": "go_atomtypes.itp",
                      "nonbond_params": "go_nbparams.itp"}
+        if not args.water_bias:
+            # this ensures that disordered-folded go bonds get removed regardless of force field.
+            vermouth.processors.ComputeWaterBias(args.water_bias,
+                                                 {s: float(eps) for s, eps in args.water_bias_eps},
+                                                 [(int(start), int(stop)) for start, stop in args.water_idrs],
+                                                ).run_system(system)
     else:
         # don't write non-bonded interactions
         itp_paths = []
@@ -1165,6 +1170,25 @@ def entry():
             "The following sequence of secondary structure ",
             "was used for the full system:",
             "".join(ss_sequence),
+        ]
+
+    supp_ss_seq = list(
+        itertools.chain(
+            *(
+                dssp.sequence_from_residues(molecule, "cgsecstruct")
+                for molecule in system.molecules
+                if selectors.is_protein(molecule)
+            )
+        )
+    )
+    if any([molecule.meta.get('modified_cgsecstruct', False) for molecule in system.molecules]):
+        LOGGER.info(("Secondary structure assignment changed between dssp and martinize. "
+                     "Check files for details."), type="general")
+        header += [
+            "The assigned secondary structure conflicted with ",
+            "annotated IDRs. The following sequence of Martini secondary ",
+            "structure was actually applied to the system:",
+            "".join([dssp.SS_CG[i] for i in supp_ss_seq])
         ]
 
     if args.top_path is not None:

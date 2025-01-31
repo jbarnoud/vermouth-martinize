@@ -85,7 +85,7 @@ def find_in_path(names=('martinize2', 'martinize2.py')):
             if os.path.isfile(fullpath):
                 return fullpath
           
-def create_sys_all_attrs(molecule, moltype, secstruc, defaults, attrs):
+def create_sys_all_attrs(molecule, moltype, secstruc, defaults, attrs, write_secstruct=True):
     """
     Generate a test system from a molecule
     with all attributes set and blocks in
@@ -138,7 +138,8 @@ def create_sys_all_attrs(molecule, moltype, secstruc, defaults, attrs):
         resid = res_graph.nodes[node]['resid']
         # assign secondary structure
         for mol_node in mol_nodes:
-            molecule.nodes[mol_node]['cgsecstruct'] = secstruc[resid]
+            if write_secstruct:
+                molecule.nodes[mol_node]['cgsecstruct'] = secstruc[resid]
             block.add_node(molecule.nodes[mol_node]['atomname'],
                            atype=molecule.nodes[mol_node]['atype'])
 

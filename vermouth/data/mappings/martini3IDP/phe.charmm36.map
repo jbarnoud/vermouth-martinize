@@ -1,0 +1,80 @@
+; Copyright 2018 University of Groningen
+;
+; Licensed under the Apache License, Version 2.0 (the "License");
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+;
+;    http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an "AS IS" BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+
+[ molecule ]
+PHE
+
+[from]
+charmm
+
+[to]
+martini3IDP
+
+[ martini ]
+BB SC1 SC2 SC3
+
+[ mapping ]
+charmm27 charmm36
+
+[ atoms ]
+    1     N    BB
+    2    HN    BB
+    3    CA    BB
+    4    HA    !BB
+    5    CB   SC1
+    6   HB1   SC1
+    7   HB2   SC1
+    8    CG   SC1
+    9   CD1   SC1 SC2 SC2
+   10   HD1   SC1 SC2 SC2
+   11   CE1   SC2
+   12   HE1   SC2
+   13    CZ   SC3 SC2
+   14    HZ   SC3 SC2
+   15   CD2   SC3 SC3 SC1
+   16   HD2   SC3 SC3 SC1
+   17   CE2   SC3
+   18   HE2   SC3
+   19     C    BB
+   20     O    BB
+
+[ chiral ]
+  CB     CA    N    C
+  HB1    CA    N    C
+  HB2    CA    N    C
+
+[ chiral ]
+  HA     CA    N    CB    C ; L-Phe
+; HA     CA    N    C    CB ; D-Phe
+
+
+[ out ]
+; Add some helper points
+P CD1 CD2 CZ
+Q CD2 CD1 CZ
+R CZ  CD1 CD2
+
+[ trans ]
+; Place hydrogens using helper points
+HD1   P CE1   R
+HD2   Q CE2   R
+HE1 CE1   P  CG
+HE2 CE2   Q  CG
+HZ    R CE1   P 
+
+[ out ]
+; Place ring carbons
+CD1 CE1 HE1 R
+CD2 CE2 HE2 R
+CZ  CE1 HE1 P

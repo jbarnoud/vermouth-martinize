@@ -39,6 +39,12 @@ def annotate_disorder(molecule, id_regions, annotation="cgidr"):
         _old_resid = node['_old_resid']
         if _in_resid_region(_old_resid, id_regions):
             molecule.nodes[key][annotation] = True
+            if "cgsecstruct" in molecule.nodes[key]:
+                if molecule.nodes[key]["cgsecstruct"] != "C":
+                    molecule.nodes[key]["cgsecstruct"] = "C"
+                    molecule.meta['modified_cgsecstruct'] = True
+        else:
+            molecule.nodes[key][annotation] = False
 
 class AnnotateIDRs(Processor):
     """
@@ -80,5 +86,5 @@ class AnnotateIDRs(Processor):
         """
         if not self.id_regions:
             return system
-        LOGGER.info("Annotating disordered regions", type="step")
+        LOGGER.info("Annotating disordered regions.", type="step")
         super().run_system(system)
