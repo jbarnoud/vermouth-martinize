@@ -356,7 +356,7 @@ class Molecule(nx.Graph):
         self.nrexcl = kwargs.pop('nrexcl', None)
         super().__init__(*args, **kwargs)
         self.interactions = defaultdict(list)
-        self.citations = set()
+        self.citations = {'vermouth'}  # This is part of martinize2/vermouth, so you should cite it!
         # {loglevel: {entry: [fmt_args]}}
         self.log_entries = defaultdict(lambda: defaultdict(list))
         self.max_node = None

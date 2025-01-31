@@ -166,7 +166,7 @@ def test_toplevel_topology(tmp_path, dummy_molecule):
     """
     os.chdir(tmp_path)
     system = vermouth.System()
-    system.molecules.append(dummy_molecule)
+    system.add_molecule(dummy_molecule)
     dummy_molecule.meta['moltype'] = "molecule_0"
     # "node": 0, "sigma": 0.43, "epsilon": 2.3, "meta": {}}
     system.gmx_topology_params['atomtypes'].append(Atomtype(node=0,

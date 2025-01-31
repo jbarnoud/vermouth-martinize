@@ -25,6 +25,8 @@ from .citation_parser import read_bib
 from . import DATA_PATH
 
 FORCE_FIELD_PARSERS = {'.rtp': read_rtp, '.ff': read_ff, '.bib': read_bib}
+# All data files that are in the root DATA_PATH, and apply to all force fields.
+COMMON_DATA_FILES = {'citations.bib'}
 
 # Cache the force fields.
 # It should only be used by the get_native_force_field function, else it would
@@ -54,6 +56,7 @@ class ForceField:
     blocks: dict
     links: list
     modifications: dict
+    citations: dict
     renamed_residues: dict
     name: str
     variables: dict
@@ -67,6 +70,11 @@ class ForceField:
         self.variables = {}
         self.name = None
         self.citations = {}
+        for filename in COMMON_DATA_FILES:
+            # This is kind of inefficient. Better to parse the common files
+            # once, and pass around the data.
+            path = DATA_PATH / filename
+            self._read_from_file(path)
         if directory is not None:
             self.read_from(directory)
             self.name = os.path.basename(str(directory))
@@ -75,6 +83,14 @@ class ForceField:
         if self.name is None:
             msg = 'At least one of `directory` or `name` must be provided.'
             raise TypeError(msg)
+
+    def __str__(self):
+        return f'ForceField({self.name})'
+
+    def __eq__(self, other):
+        # Note, we cannot compare blocks/links/modifications, since those
+        # compare their forcefields for equality.
+        return self.name == other.name
 
     def read_from(self, directory):
         """
@@ -85,9 +101,12 @@ class ForceField:
         """
         source_files = iter_force_field_files(directory)
         for source in source_files:
-            extension = os.path.splitext(source)[-1]
-            with open(source) as infile:
-                FORCE_FIELD_PARSERS[extension](infile, self)
+            self._read_from_file(source)
+
+    def _read_from_file(self, path):
+        extension = os.path.splitext(path)[-1]
+        with open(path) as infile:
+            FORCE_FIELD_PARSERS[extension](infile, self)
 
     @property
     def reference_graphs(self):
@@ -217,3 +236,6 @@ def get_native_force_field(name):
     except KeyError:
         _FORCE_FIELDS = find_force_fields(os.path.join(DATA_PATH, 'force_fields'))
         return _FORCE_FIELDS[name]
+
+
+DUMMY_FF = ForceField(name='dummy')

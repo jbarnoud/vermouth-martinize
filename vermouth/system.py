@@ -17,6 +17,7 @@
 Provides a class to describe a system.
 """
 from collections import defaultdict
+from .forcefield import DUMMY_FF
 
 class System:
     """
@@ -30,6 +31,9 @@ class System:
     def __init__(self, force_field=None):
         self.molecules = []
         self._force_field = None
+        if force_field is None:
+            # Create a dummy FF
+            force_field = DUMMY_FF
         self.force_field = force_field
         self.gmx_topology_params = defaultdict(list)
         self.go_params = defaultdict(list)
@@ -62,6 +66,17 @@ class System:
         ----------
         molecule: :class:`~vermouth.molecule.Molecule`
         """
+        if molecule.force_field is None:
+            molecule._force_field = self.force_field
+        if molecule.force_field != self.force_field:
+            if self.force_field is DUMMY_FF:
+                # We didn't have a force field, so take the one from the
+                # incoming molecule
+                self.force_field = molecule.force_field
+            else:
+                raise KeyError(f'Cannot add Molecule with force field '
+                               f'{molecule.force_field} to system with force field '
+                               f'{self.force_field}')
         self.molecules.append(molecule)
 
     @property
